@@ -93,3 +93,8 @@
   (let ((d (tui:make-input-decoder)))
     (ok (null (tui:decode-input d (octets (string #\Esc)))))
     (ok (eq :escape (tui:key-message-key (first (tui:flush-input d)))))))
+
+(deftest char-key-lookup
+  (ok (equal (multiple-value-list (tui:char-key #\a)) '(:a nil)))
+  (ok (equal (multiple-value-list (tui:char-key #\?)) '(:slash t)))
+  (ok (eq :unidentified (tui:char-key #\é))))
