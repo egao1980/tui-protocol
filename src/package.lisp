@@ -24,7 +24,7 @@
    #:key-message-p #:mouse-message-p #:paste-message-p #:focus-message-p
    #:resize-message-p #:tick-message-p
    ;; input
-   #:input-decoder #:make-input-decoder #:decode-input #:flush-input
+   #:input-decoder #:make-input-decoder #:decode-input #:flush-input #:char-key
    ;; program
    #:tui-init #:tui-update #:tui-view
    #:tick #:batch #:task

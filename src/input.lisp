@@ -31,6 +31,12 @@
     (setf (gethash #\Space table) (cons :space nil))
     table))
 
+(defun char-key (char)
+  "→ (values key shifted-p): the US-layout key that types CHAR, or
+(values :UNIDENTIFIED NIL)."
+  (let ((entry (gethash char +char-keys+)))
+    (if entry (values (car entry) (cdr entry)) (values :unidentified nil))))
+
 (defun %char-key (char modifiers)
   (let ((entry (gethash char +char-keys+)))
     (if entry
