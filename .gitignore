@@ -7,3 +7,4 @@ cl-repo.lock
 *.lx64fsl
 *.wx64fsl
 .DS_Store
+.team-solve/

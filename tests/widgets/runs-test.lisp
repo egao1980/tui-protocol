@@ -1,0 +1,80 @@
+(in-package #:tui-protocol/widgets/tests)
+
+(defun wrapped (runs width)
+  (mapcar #'w:runs-string (w:wrap-runs runs width)))
+
+(deftest text-run-styles
+  (let ((r (w:text-run "hi" :bold t :dim t :foreground 1)))
+    (ok (string= "hi" (w:text-run-text r)))
+    (ok (tp:style-bold (w:text-run-style r)))
+    (ok (tp:style-faint (w:text-run-style r)))
+    (ok (eql 1 (tp:style-foreground (w:text-run-style r))))
+    (ok (not (tp:style-italic (w:text-run-style r)))))
+  (let* ((base (tp:make-style :background 4))
+         (r (w:text-run "x" :style base :italic t :underline t)))
+    (ok (eql 4 (tp:style-background (w:text-run-style r))) "base style kept")
+    (ok (tp:style-italic (w:text-run-style r)))
+    (ok (eq :single (tp:style-underline (w:text-run-style r))) "underline T is :single")
+    (ok (not (tp:style-italic base)) "base not mutated"))
+  (ok (equalp tp:+default-style+ (w:text-run-style (w:text-run "plain"))))
+  (ok (signals (w:text-run 42) 'type-error)))
+
+(deftest as-runs-and-width
+  (ok (null (w:as-runs "")))
+  (ok (equal '("abc") (mapcar #'w:text-run-text (w:as-runs "abc"))))
+  (let ((r (w:text-run "x")))
+    (ok (equal (list r) (w:as-runs r)))
+    (ok (equal (list r r) (w:as-runs (list r r)))))
+  (ok (string= "ab日" (w:runs-string (list (w:text-run "a") (w:text-run "b日")))))
+  (ok (= 5 (w:runs-width (list (w:text-run "ab") (w:text-run "日")
+                               (w:text-run (u "e" #x301))))))
+  (ok (= 3 (w:runs-width "abc"))))
+
+(deftest draw-runs-keeps-styles
+  (let* ((canvas (tui:make-canvas 10 1))
+         (end (w:draw-runs canvas 1 0 (list (w:text-run "ab" :bold t) (w:text-run "日c")))))
+    (ok (= 6 end))
+    (ok (equal '(" ab日c") (tui:canvas-lines canvas)))
+    (ok (tp:style-bold (cell-style canvas 1 0)))
+    (ok (tp:style-bold (cell-style canvas 2 0)))
+    (ok (not (tp:style-bold (cell-style canvas 3 0))))
+    (ok (eq :wide (tp:cell-width (tui:canvas-cell canvas 3 0)))))
+  (let ((canvas (tui:make-canvas 4 1)))
+    (ok (= 6 (w:draw-runs canvas 0 0 "abcdef")) "clipped, but → the column after the text, as draw-text")
+    (ok (equal '("abcd") (tui:canvas-lines canvas)))))
+
+(deftest wrap-runs-words
+  (ok (equal '("hello" "world") (wrapped "hello world" 7)))
+  (ok (equal '("hello world") (wrapped "hello world" 11)))
+  (ok (equal '("ab" "cd") (wrapped "ab cd" 3)) "the break space is dropped")
+  (ok (equal '("one two" "three") (wrapped "one two three" 9)))
+  (ok (equal '("abcd" "ef") (wrapped "abcdef" 4)) "no space: hard break")
+  (ok (equal '("ab" "cdef" "g") (wrapped "ab cdefg" 4)))
+  (ok (equal '("a" "" "b") (wrapped (format nil "a~%~%b") 5)) "empty hard line")
+  (ok (equal '("") (wrapped "" 5)))
+  (ok (equal '("ab " "cd") (wrapped "ab  cd" 3)) "only one space is dropped"))
+
+(deftest wrap-runs-wide-and-combining
+  (ok (equal '("日本" "語") (wrapped "日本語" 5)) "a wide char that does not fit moves down")
+  (ok (equal '("a日" "本") (wrapped "a日本" 3)))
+  (ok (equal (list (u "e" #x301 "e" #x301) (u "e" #x301))
+             (wrapped (u "e" #x301 "e" #x301 "e" #x301) 2))
+      "combining marks stay with their base")
+  (ok (equal '("日" "本") (wrapped "日本" 1)) "at least one character per line"))
+
+(deftest wrap-runs-keeps-styles
+  (let* ((lines (w:wrap-runs (list (w:text-run "aa " :bold t) (w:text-run "bb cc")) 5))
+         (first-line (first lines)))
+    (ok (equal '("aa bb" "cc") (mapcar #'w:runs-string lines)))
+    (ok (tp:style-bold (w:text-run-style (first first-line))))
+    (ok (string= "aa " (w:text-run-text (first first-line))))
+    (ok (notany (lambda (r) (tp:style-bold (w:text-run-style r))) (second lines))))
+  (ok (signals (w:wrap-runs "abc" 0) 'type-error)))
+
+(deftest truncate-runs-ellipsis
+  (ok (string= "abc" (w:runs-string (w:truncate-runs "abc" 3))))
+  (ok (string= "ab…" (w:runs-string (w:truncate-runs "abcd" 3))))
+  (ok (string= "a…" (w:runs-string (w:truncate-runs "a日本" 3)))
+      "a wide char that would cross the limit is dropped")
+  (ok (string= "ab.." (w:runs-string (w:truncate-runs "abcdef" 4 :ellipsis ".."))))
+  (ok (<= (w:runs-width (w:truncate-runs "日本語日本語" 5)) 5)))
