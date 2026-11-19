@@ -33,7 +33,7 @@
   :description "Widgets for tui-protocol programs: multi-line text input, scrolling viewport, select list, confirm dialog, spinner, status line, styled text runs"
   :author "egao1980"
   :license "MIT"
-  :depends-on ("tui-protocol" "terminal-protocol")
+  :depends-on ("tui-protocol" "terminal-protocol" "bordeaux-threads")
   :serial t
   :pathname "widgets"
   :components ((:file "package")

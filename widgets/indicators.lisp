@@ -24,24 +24,35 @@
 
 (defun spinner-start (spinner)
   "Activate SPINNER. → the command that starts its ticks."
-  (declare (ignore spinner))
-  (%todo 'spinner-start))
+  (setf (spinner-active-p spinner) t)
+  (tui:tick (spinner-interval spinner)))
 
 (defun spinner-stop (spinner)
   "Deactivate SPINNER (its pending tick is then ignored). → NIL."
-  (declare (ignore spinner))
-  (%todo 'spinner-stop))
+  (setf (spinner-active-p spinner) nil)
+  nil)
 
 (defmethod widget-init ((spinner spinner))
-  (%todo 'widget-init))
+  (when (spinner-active-p spinner)
+    (tui:tick (spinner-interval spinner))))
 
 (defmethod widget-update ((spinner spinner) message)
-  (declare (ignore message))
-  (%todo 'widget-update))
+  (if (and (tui:tick-message-p message) (spinner-active-p spinner))
+      (let ((n (length (spinner-frames spinner))))
+        (setf (spinner-frame spinner)
+              (if (plusp n) (mod (1+ (spinner-frame spinner)) n) 0))
+        (values spinner (tui:tick (spinner-interval spinner)) nil))
+      (values spinner nil nil)))
 
 (defmethod widget-view ((spinner spinner) canvas)
-  (declare (ignore canvas))
-  (%todo 'widget-view))
+  (setf (widget-width spinner) (tui:canvas-cols canvas)
+        (widget-height spinner) (tui:canvas-rows canvas))
+  (let ((frames (spinner-frames spinner)))
+    (when (and (spinner-active-p spinner) frames)
+      (let ((x (draw-runs canvas 0 0 (nth (mod (spinner-frame spinner) (length frames)) frames)))
+            (label (spinner-label spinner)))
+        (when (plusp (runs-width label))
+          (draw-runs canvas (1+ x) 0 label))))))
 
 ;;; ------------------------------------------------------------------
 ;;; status-line
@@ -60,6 +71,21 @@
    (style :initarg :style :initform tp:+default-style+ :accessor status-line-style))
   (:documentation "A one-row bar: left text, right-aligned text."))
 
+(defun %side-runs (side style)
+  "A status-line side: a string is drawn in STYLE, runs in their own styles."
+  (if (stringp side)
+      (if (zerop (length side)) '() (list (text-run side :style style)))
+      (as-runs side)))
+
 (defmethod widget-view ((status status-line) canvas)
-  (declare (ignore canvas))
-  (%todo 'widget-view))
+  (let* ((w (tui:canvas-cols canvas))
+         (style (status-line-style status))
+         (left (%side-runs (status-line-left status) style))
+         (right (%side-runs (status-line-right status) style))
+         (rw (runs-width right)))
+    (setf (widget-width status) w (widget-height status) (tui:canvas-rows canvas))
+    (tui:fill-rect canvas 0 0 w 1 :style style)
+    (if (or (zerop rw) (> (+ rw 2) w))
+        (draw-runs canvas 0 0 (truncate-runs left w))
+        (progn (draw-runs canvas 0 0 (truncate-runs left (- w rw 1)))
+               (draw-runs canvas (- w rw) 0 right)))))
