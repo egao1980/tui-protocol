@@ -30,6 +30,10 @@ Backends supply the bytes: `tui-backend-terminal` (headless, on any `terminal-pr
 - The renderer's output is fed through `terminal-backend-lisp`, and the emulator's screen must equal the canvas, cell for cell.
 - Every byte sequence the emulator's `encode-key` / `encode-mouse` / `encode-paste` / `encode-focus` produce must decode back to the same event, fed whole and fed byte by byte.
 
+## Widgets (`tui-protocol/widgets`, H1b contract: stubs + tests, not implemented yet)
+
+Composable widgets for a coding-agent CLI. Each widget is its own model: `widget-update (w message) → (values w command event)` and `widget-view (w canvas)`. The widgets are `text-input` (multi-line, history, paste, wide characters, a completion hook for `@` mentions), `viewport` (wrap, paging, follow-tail), `select-list`, `confirm-dialog` (permission prompts), `spinner` and `status-line`, plus styled `text-run`s. `make-widget-program` runs one widget as a program. The locked contract is in the brief's "H1b — widgets, locked" section.
+
 ## License
 
 MIT
